@@ -9,6 +9,14 @@ import math
 import matplotlib.pyplot as plt
 import datetime
 import json
+import time
+import requests
+
+filename = "data/orbital_data.json"
+selected_group = "gps-ops"
+
+data = []
+data_timestamp = 0
 
 observer_lat = 52.29
 observer_lon = 8.91
@@ -17,6 +25,37 @@ alt_az_range = AltAzimuthRange()
 alt_az_range.observer(observer_lat, observer_lon, observer_elevation)
 
 geodesic = pyproj.Geod(ellps='WGS84')
+
+
+def update_orbital_data():
+    with open(filename, "r") as f:
+        contents = json.load(f)
+    for i in contents:
+        if time.time() - i["timestamp"] >= 7200:
+            tle_json = []
+            print(f"Downloading TLE data for {i['group']}")
+            request = requests.get(f'http://celestrak.org/NORAD/elements/gp.php?GROUP={i["group"]}&FORMAT=tle')
+            tmp_dict = {}
+            for j in request.text.split('\n'):
+                try:
+                    if j[0] == '1':
+                        tmp_dict['tle_1'] = j.strip()
+                    elif j[0] == '2':
+                        tmp_dict['tle_2'] = j.strip()
+                    else:
+                        tmp_dict['satellite_name'] = j.strip()
+
+                    if "tle_1" in tmp_dict and "tle_2" in tmp_dict and "satellite_name" in tmp_dict:
+                        tle_json.append(tmp_dict)
+                        tmp_dict = {}
+                    else:
+                        pass
+                except:
+                    pass
+            i["data"] = tle_json
+            i["timestamp"] = time.time()
+    with open(filename, "w") as f:
+        json.dump(contents, f, indent=2)
 
 
 def format_year(last_two): # Get full year from last 2 digits
@@ -34,8 +73,22 @@ def dms2dd(d, m, s): # Convert coordinates from day minute second (dms) format t
     return dd
 
 
-with open("celes_tle.json", "r") as file: # Load JSON TLE data
-    data = json.load(file)
+update_orbital_data()
+
+def load_orbital_data():
+    global data, data_timestamp
+    with open(f"{filename}", "r") as file: # Load JSON TLE data
+        loaded = json.load(file)
+        data = []
+        for i in loaded:
+            if i["group"] == selected_group:
+                data = i["data"]
+                data_timestamp = i["timestamp"]
+        if not data:
+            print(f"No Orbital Data available for group {selected_group}")
+
+
+load_orbital_data()
 
 
 fig = plt.figure(dpi=100)
@@ -49,6 +102,10 @@ plt_data = []
 
 while True:
     for sat in data:
+        if time.time() - data_timestamp > 7200:
+            update_orbital_data()
+            load_orbital_data()
+
         line_1 = sat["tle_1"]
         line_2 = sat["tle_2"]
         satellite = Satrec.twoline2rv(line_1, line_2)
@@ -60,6 +117,7 @@ while True:
         teme = TEME(CartesianRepresentation(r[0], r[1], r[2], unit=u.km), obstime=now)
         itrs = teme.transform_to(ITRS(obstime=now))
         loc = EarthLocation(*itrs.cartesian.xyz)
+
         lat_day_split = str(loc.lat).split("d")
         lat_min_split = lat_day_split[1].split("m")
         lat_day = lat_day_split[0]
@@ -72,20 +130,14 @@ while True:
         lon_sec = lon_min_split[1].strip("s")
         lat_dd = dms2dd(lat_day, lat_min, lat_sec)
         lon_dd = dms2dd(lon_day, lon_min, lon_sec)
-        # delta_lat = abs(observer_lat - lat_dd)
-        # delta_lon = abs(observer_lon - lon_dd)
-        # print(lat_dd, lon_dd, loc.height, sat["satellite_name"])
-        # fwd_azimuth, back_azimuth, distance = geodesic.inv(observer_lon, observer_lat, lon_dd, lat_dd)
-        # slant_range = math.sqrt(distance**2 + (float(str(loc.height).strip(" km")) - observer_elevation)**2)
-        # print(fwd_azimuth, slant_range)
         alt_az_range.target(lat_dd, lon_dd, float(str(loc.height).strip(" km")) * 1000)
         calc = alt_az_range.calculate()
-        # print(sat["satellite_name"], lat_dd, lon_dd, loc.height)
+
         try:
             if calc["elevation"] >= 0:
-                for i in data:
+                for i in plt_data:
                     if i["satellite_name"] == sat["satellite_name"]:
-                        data.remove(i)
+                        plt_data.remove(i)
                 temp_dict = {"satellite_name": sat['satellite_name'], "azimuth": calc['azimuth'], "elevation": calc['elevation']}
                 plt_data.append(temp_dict)
         except TypeError:
