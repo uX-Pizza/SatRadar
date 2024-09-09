@@ -27,35 +27,36 @@ alt_az_range.observer(observer_lat, observer_lon, observer_elevation)
 geodesic = pyproj.Geod(ellps='WGS84')
 
 
-def update_orbital_data():
+def update_orbital_data(group):
     with open(filename, "r") as f:
         contents = json.load(f)
     for i in contents:
-        if time.time() - i["timestamp"] >= 7200:
-            tle_json = []
-            print(f"Downloading TLE data for {i['group']}")
-            request = requests.get(f'http://celestrak.org/NORAD/elements/gp.php?GROUP={i["group"]}&FORMAT=tle')
-            tmp_dict = {}
-            for j in request.text.split('\n'):
-                try:
-                    if j[0] == '1':
-                        tmp_dict['tle_1'] = j.strip()
-                    elif j[0] == '2':
-                        tmp_dict['tle_2'] = j.strip()
-                    else:
-                        tmp_dict['satellite_name'] = j.strip()
+        if i["group"] == group:
+            if time.time() - i["timestamp"] >= 7200:
+                tle_json = []
+                print(f"Downloading TLE data for {i['group']}")
+                request = requests.get(f'http://celestrak.org/NORAD/elements/gp.php?GROUP={i["group"]}&FORMAT=tle')
+                tmp_dict = {}
+                for j in request.text.split('\n'):
+                    try:
+                        if j[0] == '1':
+                            tmp_dict['tle_1'] = j.strip()
+                        elif j[0] == '2':
+                            tmp_dict['tle_2'] = j.strip()
+                        else:
+                            tmp_dict['satellite_name'] = j.strip()
 
-                    if "tle_1" in tmp_dict and "tle_2" in tmp_dict and "satellite_name" in tmp_dict:
-                        tle_json.append(tmp_dict)
-                        tmp_dict = {}
-                    else:
+                        if "tle_1" in tmp_dict and "tle_2" in tmp_dict and "satellite_name" in tmp_dict:
+                            tle_json.append(tmp_dict)
+                            tmp_dict = {}
+                        else:
+                            pass
+                    except:
                         pass
-                except:
-                    pass
-            i["data"] = tle_json
-            i["timestamp"] = time.time()
-    with open(filename, "w") as f:
-        json.dump(contents, f, indent=2)
+                i["data"] = tle_json
+                i["timestamp"] = time.time()
+        with open(filename, "w") as f:
+            json.dump(contents, f, indent=2)
 
 
 def format_year(last_two): # Get full year from last 2 digits
@@ -73,7 +74,7 @@ def dms2dd(d, m, s): # Convert coordinates from day minute second (dms) format t
     return dd
 
 
-update_orbital_data()
+update_orbital_data(selected_group)
 
 def load_orbital_data():
     global data, data_timestamp
@@ -103,7 +104,7 @@ plt_data = []
 while True:
     for sat in data:
         if time.time() - data_timestamp > 7200:
-            update_orbital_data()
+            update_orbital_data(selected_group)
             load_orbital_data()
 
         line_1 = sat["tle_1"]
