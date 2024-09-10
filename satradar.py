@@ -13,7 +13,7 @@ import time
 import requests
 
 filename = "data/orbital_data.json"
-selected_group = "gps-ops"
+selected_group = "noaa"
 
 data = []
 data_timestamp = 0
@@ -141,6 +141,11 @@ while True:
                         plt_data.remove(i)
                 temp_dict = {"satellite_name": sat['satellite_name'], "azimuth": calc['azimuth'], "elevation": calc['elevation']}
                 plt_data.append(temp_dict)
+            else:
+                for i in plt_data:
+                    if sat["satellite_name"] == i["satellite_name"]:
+                        print(f"{sat['satellite_name']} dropped below the horizon")
+                        plt_data.remove(i)
         except TypeError:
             pass
 
