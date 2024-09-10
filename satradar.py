@@ -3,7 +3,6 @@ from astropy import units as u
 from astropy.coordinates import TEME, ITRS, CartesianRepresentation, EarthLocation
 from astropy.time import Time
 from AltAzRange import AltAzimuthRange
-import pyproj
 
 import math
 import matplotlib.pyplot as plt
@@ -23,8 +22,6 @@ observer_lon = 8.91
 observer_elevation = 70
 alt_az_range = AltAzimuthRange()
 alt_az_range.observer(observer_lat, observer_lon, observer_elevation)
-
-geodesic = pyproj.Geod(ellps='WGS84')
 
 
 def update_orbital_data(group):
@@ -76,6 +73,7 @@ def dms2dd(d, m, s): # Convert coordinates from day minute second (dms) format t
 
 update_orbital_data(selected_group)
 
+
 def load_orbital_data():
     global data, data_timestamp
     with open(f"{filename}", "r") as file: # Load JSON TLE data
@@ -91,13 +89,11 @@ def load_orbital_data():
 
 load_orbital_data()
 
-
 fig = plt.figure(dpi=100)
 ax = fig.add_subplot(projection='polar')
 ax.set_ylim((90, 0))
 ax.set_theta_zero_location("N")
 ax.set_theta_direction(-1)
-
 
 plt_data = []
 
