@@ -12,7 +12,7 @@ import time
 import requests
 
 filename = "data/orbital_data.json"
-selected_group = "noaa"
+selected_group = "stations"
 
 data = []
 data_timestamp = 0
@@ -56,13 +56,6 @@ def update_orbital_data(group):
             json.dump(contents, f, indent=2)
 
 
-def format_year(last_two): # Get full year from last 2 digits
-    if int(last_two) > 57:
-        return int("19" + f"{last_two}")
-    elif int(last_two) < 57:
-        return int("20" + f"{last_two}")
-
-
 def dms2dd(d, m, s): # Convert coordinates from day minute second (dms) format to decimal degree (dd)
     if d[0] == "-":
         dd = int(d) - (int(m)/60) - (float(s)/3600)
@@ -74,9 +67,9 @@ def dms2dd(d, m, s): # Convert coordinates from day minute second (dms) format t
 update_orbital_data(selected_group)
 
 
-def load_orbital_data():
+def load_orbital_data(): # Load JSON TLE data
     global data, data_timestamp
-    with open(f"{filename}", "r") as file: # Load JSON TLE data
+    with open(f"{filename}", "r") as file:
         loaded = json.load(file)
         data = []
         for i in loaded:
@@ -106,7 +99,6 @@ while True:
         line_1 = sat["tle_1"]
         line_2 = sat["tle_2"]
         satellite = Satrec.twoline2rv(line_1, line_2)
-        year = format_year(satellite.epochyr)
         jd, fr = jday(datetime.datetime.utcnow().year, datetime.datetime.utcnow().month, datetime.datetime.utcnow().day, datetime.datetime.utcnow().hour, datetime.datetime.utcnow().minute, datetime.datetime.utcnow().second + (datetime.datetime.utcnow().microsecond / 1000000))
         e, r, v = satellite.sgp4(jd, fr)
         date= datetime.datetime.utcnow()
@@ -148,7 +140,7 @@ while True:
     for i in plt_data:
         print(i)
         plt.plot(math.radians(i["azimuth"]), i["elevation"], marker=".", color=(0, 0, 0))
-        ax.annotate(f"{i['satellite_name']}", xy=(math.radians(i["azimuth"]), i["elevation"]), fontsize=7, horizontalalignment="left", verticalalignment="top")
+        ax.annotate(f" {i['satellite_name']}", xy=(math.radians(i["azimuth"]), i["elevation"]), fontsize=7, horizontalalignment="left", verticalalignment="top")
 
     ax.set_ylim((90, 0))
     ax.set_theta_direction(-1)
