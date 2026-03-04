@@ -11,8 +11,9 @@ import json
 import time
 import requests
 
+
 filename = "data/orbital_data.json"
-selected_group = "stations"
+selected_group = "visual"
 
 data = []
 data_timestamp = 0
@@ -40,10 +41,11 @@ def update_orbital_data(group):
                             tmp_dict['tle_1'] = j.strip()
                         elif j[0] == '2':
                             tmp_dict['tle_2'] = j.strip()
+                            tmp_dict['norad_id'] = int(j.strip().split(' ')[1])
                         else:
                             tmp_dict['satellite_name'] = j.strip()
 
-                        if "tle_1" in tmp_dict and "tle_2" in tmp_dict and "satellite_name" in tmp_dict:
+                        if "tle_1" in tmp_dict and "tle_2" in tmp_dict and "satellite_name" in tmp_dict and "norad_id" in tmp_dict:
                             tle_json.append(tmp_dict)
                             tmp_dict = {}
                         else:
@@ -101,7 +103,7 @@ while True:
         satellite = Satrec.twoline2rv(line_1, line_2)
         jd, fr = jday(datetime.datetime.utcnow().year, datetime.datetime.utcnow().month, datetime.datetime.utcnow().day, datetime.datetime.utcnow().hour, datetime.datetime.utcnow().minute, datetime.datetime.utcnow().second + (datetime.datetime.utcnow().microsecond / 1000000))
         e, r, v = satellite.sgp4(jd, fr)
-        date= datetime.datetime.utcnow()
+        date = datetime.datetime.utcnow()
         now = Time(date, scale="utc")
         teme = TEME(CartesianRepresentation(r[0], r[1], r[2], unit=u.km), obstime=now)
         itrs = teme.transform_to(ITRS(obstime=now))
@@ -125,20 +127,19 @@ while True:
         try:
             if calc["elevation"] >= 0:
                 for i in plt_data:
-                    if i["satellite_name"] == sat["satellite_name"]:
+                    if i["norad_id"] == sat["norad_id"]:
                         plt_data.remove(i)
-                temp_dict = {"satellite_name": sat['satellite_name'], "azimuth": calc['azimuth'], "elevation": calc['elevation']}
+                temp_dict = {"satellite_name": sat["satellite_name"], "norad_id": sat['norad_id'], "azimuth": calc['azimuth'], "elevation": calc['elevation']}
                 plt_data.append(temp_dict)
             else:
                 for i in plt_data:
-                    if sat["satellite_name"] == i["satellite_name"]:
+                    if sat["norad_id"] == i["norad_id"]:
                         print(f"{sat['satellite_name']} dropped below the horizon")
                         plt_data.remove(i)
         except TypeError:
             pass
 
     for i in plt_data:
-        print(i)
         plt.plot(math.radians(i["azimuth"]), i["elevation"], marker=".", color=(0, 0, 0))
         ax.annotate(f" {i['satellite_name']}", xy=(math.radians(i["azimuth"]), i["elevation"]), fontsize=7, horizontalalignment="left", verticalalignment="top")
 
